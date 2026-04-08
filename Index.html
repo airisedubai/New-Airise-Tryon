@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AIRISE · Virtual Try-On</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #08080A; color: #EDE9E0; font-family: Georgia, serif; min-height: 100vh; }
+
+header {
+background: #0C0C14; border-bottom: 1px solid #1A1A28;
+padding: 14px 18px; display: flex; align-items: center;
+justify-content: space-between; position: sticky; top: 0; z-index: 30;
+}
+.logo { color: #C9A96E; letter-spacing: .18em; font-size: 16px; text-transform: uppercase; }
+.logo span { color: #333348; font-size: 10px; margin-left: 10px; letter-spacing: .08em; }
+.setup-btn {
+background: transparent; border: 1px solid #333348; border-radius: 20px;
+padding: 4px 12px; font-size: 10px; color: #55556A; cursor: pointer;
+font-family: Georgia, serif; letter-spacing: .08em;
+}
+.setup-btn.connected { border-color: rgba(110,202,154,.4); color: #6ECA9A; }
+
+.container { max-width: 480px; margin: 0 auto; padding: 20px 14px 80px; }
+
+/* SETUP */
+.setup-panel {
+background: #0C0C14; border: 1px solid #1A1A28; border-radius: 12px;
+padding: 20px 18px; margin-bottom: 24px;
+}
+.setup-panel h2 { color: #C9A96E; font-size: 14px; font-weight: 400; margin-bottom: 16px; letter-spacing: .04em; }
+.step-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+.step-num {
+width: 24px; height: 24px; border-radius: 50%; background: #1A1A28;
+border: 1px solid #333348; display: flex; align-items: center; justify-content: center;
+font-size: 11px; color: #C9A96E; flex-shrink: 0; margin-top: 1px;
+}
+.step-txt { font-size: 12px; color: #66667A; line-height: 1.6; }
+.step-txt a { color: #6E8ECA; }
+#apiKey {
+width: 100%; padding: 11px 12px; border-radius: 6px; border: 1px solid #222230;
+background: #08080A; color: #EDE9E0; font-size: 13px; font-family: monospace;
+margin-bottom: 10px; outline: none;
+}
+#apiKey.valid { border-color: rgba(110,202,154,.4); }
+#connectBtn {
+width: 100%; padding: 13px; border-radius: 6px; border: none;
+background: #1A1A28; color: #333348; font-size: 12px; letter-spacing: .14em;
+text-transform: uppercase; font-weight: 700; cursor: pointer; font-family: Georgia, serif;
+}
+#connectBtn.ready { background: linear-gradient(135deg,#C9A96E,#8A6F3E); color: #08080A; }
+
+/* MAIN */
+#main { display: none; }
+.hero { text-align: center; margin-bottom: 22px; }
+.hero h1 { font-size: 22px; font-weight: 300; letter-spacing: .03em; margin-bottom: 6px; }
+.hero h1 em { color: #C9A96E; font-style: italic; }
+.hero p { color: #33334A; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+
+.row { display: flex; gap: 10px; margin-bottom: 14px; }
+.zone { flex: 1; }
+.zone label {
+font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+color: #8A6F3E; display: block; margin-bottom: 6px;
+}
+.dropbox {
+border: 2px dashed #222230; border-radius: 8px; overflow: hidden;
+background: #0C0C14; min-height: 130px; text-align: center;
+cursor: pointer; position: relative; display: flex;
+align-items: center; justify-content: center;
+}
+.dropbox.has-img { min-height: 0; border-color: #6ECA9A; }
+.dropbox img { width: 100%; display: block; max-height: 210px; object-fit: cover; }
+.dropbox .placeholder { padding: 20px 10px; }
+.dropbox .placeholder .icon { font-size: 26px; opacity: .2; margin-bottom: 8px; }
+.dropbox .placeholder p { color: #44445A; font-size: 12px; line-height: 1.5; }
+.change-badge {
+position: absolute; bottom: 6px; right: 6px;
+background: rgba(0,0,0,.7); border-radius: 20px;
+padding: 3px 9px; font-size: 10px; color: #C9A96E;
+}
+input[type=file] { display: none; }
+
+.desc-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #8A6F3E; margin-bottom: 6px; display: block; }
+#garmentDesc {
+width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #222230;
+background: #0C0C14; color: #EDE9E0; font-size: 12px; font-family: Georgia, serif;
+margin-bottom: 16px; outline: none;
+}
+
+#generateBtn {
+width: 100%; padding: 15px; border-radius: 8px; border: none;
+background: #14141E; color: #2A2A3A; font-size: 13px;
+letter-spacing: .18em; text-transform: uppercase; font-weight: 700;
+cursor: not-allowed; font-family: Georgia, serif; margin-bottom: 12px;
+transition: all .25s;
+}
+#generateBtn.ready {
+background: linear-gradient(135deg,#C9A96E,#8A6F3E); color: #08080A;
+cursor: pointer; box-shadow: 0 4px 20px rgba(201,169,110,.18);
+}
+#generateBtn.loading { background: rgba(201,169,110,.14); color: #C9A96E; cursor: wait; }
+
+.progress { height: 2px; background: #1A1A28; border-radius: 2px; margin-bottom: 16px; overflow: hidden; display: none; }
+.progress-bar {
+height: 100%; width: 60%; background: linear-gradient(90deg,#8A6F3E,#E8C98A,#8A6F3E);
+background-size: 200% 100%; border-radius: 2px;
+animation: shimmer 1.5s linear infinite;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.error-box {
+background: rgba(202,110,110,.07); border: 1px solid rgba(202,110,110,.2);
+border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; display: none;
+}
+.error-box strong { color: #CA6E6E; font-size: 12px; display: block; margin-bottom: 4px; }
+.error-box p { color: #CA6E6E; font-size: 11px; line-height: 1.7; opacity: .85; }
+
+.result-section { display: none; margin-bottom: 24px; }
+.result-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #6ECA9A; margin-bottom: 10px; }
+.before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.ba-label { font-size: 9px; text-align: center; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
+.ba-label.after { color: #6ECA9A; }
+.ba-label.before { color: #333348; }
+.ba-img { width: 100%; border-radius: 6px; border: 1px solid #1A1A28; display: block; }
+.ba-img.after { border-color: rgba(110,202,154,.3); }
+.full-result { width: 100%; border-radius: 8px; border: 1px solid #1A1A28; display: block; margin-bottom: 12px; }
+.save-btn {
+display: block; width: 100%; padding: 12px; border-radius: 6px;
+border: 1px solid rgba(110,202,154,.3); background: rgba(110,202,154,.07);
+color: #6ECA9A; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+text-align: center; text-decoration: none; margin-bottom: 10px; cursor: pointer;
+font-family: Georgia, serif;
+}
+.retry-btn {
+width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #222230;
+background: transparent; color: #55556A; font-size: 11px; letter-spacing: .1em;
+text-transform: uppercase; cursor: pointer; font-family: Georgia, serif;
+}
+</style>
+
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="logo">AIRISE <span>Try-On Studio</span></span>
+  </div>
+  <button class="setup-btn" id="headerBtn" onclick="toggleSetup()">⚙ Connect Google AI</button>
+</header>
+
+<div class="container">
+
+  <!-- SETUP -->
+
+  <div class="setup-panel" id="setupPanel">
+    <h2>Connect Your Google AI Account</h2>
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-txt">Open <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> — sign in with your Google account</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-txt">Tap "Get API Key" → "Create API key" → Copy it</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-txt">Paste below. Free tier — no billing needed for testing.</div>
+    </div>
+    <input type="password" id="apiKey" placeholder="AIzaSy…" oninput="checkKey()" />
+    <button id="connectBtn" onclick="connect()">Paste your API key above</button>
+  </div>
+
+  <!-- MAIN APP -->
+
+  <div id="main">
+    <div class="hero">
+      <h1>See it on <em>you</em></h1>
+      <p>Upload your photo + dress → Gemini AI generates try-on</p>
+    </div>
+
+```
+<div class="row">
+  <!-- PERSON -->
+  <div class="zone">
+    <label>Your Photo</label>
+    <div class="dropbox" id="personBox" onclick="document.getElementById('personInput').click()">
+      <div class="placeholder">
+        <div class="icon">🧍</div>
+        <p>Tap to upload<br/>your photo</p>
+      </div>
+    </div>
+    <input type="file" id="personInput" accept="image/*" onchange="handleUpload('person', this)"/>
+  </div>
+
+  <!-- GARMENT -->
+  <div class="zone">
+    <label>Garment Photo</label>
+    <div class="dropbox" id="garmentBox" onclick="document.getElementById('garmentInput').click()">
+      <div class="placeholder">
+        <div class="icon">👗</div>
+        <p>Tap to upload<br/>dress/garment</p>
+      </div>
+    </div>
+    <input type="file" id="garmentInput" accept="image/*" onchange="handleUpload('garment', this)"/>
+  </div>
+</div>
+
+<label class="desc-label">Garment Description (optional — helps AI)</label>
+<input type="text" id="garmentDesc" placeholder="e.g. purple salwar kameez with embroidery…"/>
+
+<button id="generateBtn" onclick="generate()">Upload both photos to start</button>
+
+<div class="progress" id="progressBar"><div class="progress-bar"></div></div>
+
+<div class="error-box" id="errorBox">
+  <strong>⚠ Error</strong>
+  <p id="errorMsg"></p>
+</div>
+
+<div class="result-section" id="resultSection">
+  <div class="result-label">✦ AI Try-On Ready</div>
+  <div class="before-after">
+    <div>
+      <div class="ba-label before">Before</div>
+      <img id="beforeImg" class="ba-img" src="" alt="before"/>
+    </div>
+    <div>
+      <div class="ba-label after">After ✦ AI</div>
+      <img id="afterImg" class="ba-img after" src="" alt="after"/>
+    </div>
+  </div>
+  <img id="fullResult" class="full-result" src="" alt="full result"/>
+  <a id="saveBtn" class="save-btn" download="airise-tryon.jpg">↓ Save Image</a>
+  <button class="retry-btn" onclick="retry()">↺ Try Another</button>
+</div>
+```
+
+  </div>
+
+</div>
+
+<script>
+let apiKey = '';
+let personData = null;
+let garmentData = null;
+
+function checkKey() {
+  const val = document.getElementById('apiKey').value;
+  const btn = document.getElementById('connectBtn');
+  const inp = document.getElementById('apiKey');
+  if (val.startsWith('AIza') && val.length > 20) {
+    btn.className = 'ready';
+    btn.textContent = '✓ Connect & Start';
+    inp.className = 'valid';
+  } else {
+    btn.className = '';
+    btn.textContent = 'Paste your API key above';
+    inp.className = '';
+  }
+}
+
+function connect() {
+  const val = document.getElementById('apiKey').value;
+  if (!val.startsWith('AIza') || val.length < 20) {
+    alert('Key should start with AIza and be ~39 characters');
+    return;
+  }
+  apiKey = val;
+  document.getElementById('setupPanel').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  const hBtn = document.getElementById('headerBtn');
+  hBtn.textContent = '✓ Google AI Connected';
+  hBtn.className = 'setup-btn connected';
+}
+
+function toggleSetup() {
+  const p = document.getElementById('setupPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function handleUpload(type, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = e.target.result;
+    if (type === 'person') {
+      personData = data;
+      showPreview('personBox', data);
+      document.getElementById('beforeImg').src = data;
+    } else {
+      garmentData = data;
+      showPreview('garmentBox', data);
+    }
+    updateBtn();
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function showPreview(boxId, src) {
+  const box = document.getElementById(boxId);
+  box.className = 'dropbox has-img';
+  box.innerHTML = `<img src="${src}" alt="preview"/><span class="change-badge">↺ Change</span>`;
+}
+
+function updateBtn() {
+  const btn = document.getElementById('generateBtn');
+  if (personData && garmentData) {
+    btn.className = 'ready';
+    btn.textContent = '✦  Generate AI Try-On';
+  }
+}
+
+async function generate() {
+  if (!personData || !garmentData || !apiKey) return;
+
+  const btn = document.getElementById('generateBtn');
+  btn.className = 'loading';
+  btn.textContent = '⟳  Sending to Gemini AI…';
+  document.getElementById('progressBar').style.display = 'block';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('resultSection').style.display = 'none';
+
+  const desc = document.getElementById('garmentDesc').value;
+
+  const prompt = `You are a professional virtual fashion try-on AI.
+
+I am giving you two images:
+IMAGE 1: A person
+IMAGE 2: A garment/clothing item
+
+Task: Generate a PHOTOREALISTIC image of the SAME person from IMAGE 1 wearing the garment from IMAGE 2.
+
+Rules:
+- Keep the person's exact face, hair, skin tone, and body proportions unchanged
+- The garment should look naturally worn with correct draping and fit
+- Maintain the same pose and background from IMAGE 1
+- Result must look like a real photograph
+${desc ? '- Garment description: ' + desc : ''}
+
+Generate the try-on image now.`;
+
+  const p1B64 = personData.split(',')[1];
+  const g1B64 = garmentData.split(',')[1];
+  const p1Mime = personData.split(';')[0].split(':')[1];
+  const g1Mime = garmentData.split(';')[0].split(':')[1];
+
+  const body = {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: p1Mime, data: p1B64 } },
+        { inline_data: { mime_type: g1Mime, data: g1B64 } },
+        { text: prompt }
+      ]
+    }],
+    generationConfig: {
+      responseModalities: ['IMAGE', 'TEXT'],
+      temperature: 1,
+      topP: 0.95
+    }
+  };
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error?.message || 'API error ' + res.status);
+    }
+
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const imgPart = parts.find(p => p.inline_data?.mime_type?.startsWith('image/'));
+
+    if (!imgPart) {
+      const textPart = parts.find(p => p.text);
+      throw new Error(textPart?.text || 'Gemini did not return an image. Try a clearer photo.');
+    }
+
+    const resultSrc = `data:${imgPart.inline_data.mime_type};base64,${imgPart.inline_data.data}`;
+
+    document.getElementById('afterImg').src = resultSrc;
+    document.getElementById('fullResult').src = resultSrc;
+    document.getElementById('saveBtn').href = resultSrc;
+    document.getElementById('resultSection').style.display = 'block';
+    btn.className = 'ready';
+    btn.textContent = '✦  Generate Again';
+
+  } catch(e) {
+    document.getElementById('errorMsg').textContent = e.message;
+    document.getElementById('errorBox').style.display = 'block';
+    btn.className = 'ready';
+    btn.textContent = '✦  Try Again';
+  } finally {
+    document.getElementById('progressBar').style.display = 'none';
+  }
+}
+
+function retry() {
+  personData = null; garmentData = null;
+  document.getElementById('personBox').className = 'dropbox';
+  document.getElementById('personBox').innerHTML = '<div class="placeholder"><div class="icon">🧍</div><p>Tap to upload<br/>your photo</p></div>';
+  document.getElementById('garmentBox').className = 'dropbox';
+  document.getElementById('garmentBox').innerHTML = '<div class="placeholder"><div class="icon">👗</div><p>Tap to upload<br/>dress/garment</p></div>';
+  document.getElementById('resultSection').style.display = 'none';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('garmentDesc').value = '';
+  document.getElementById('generateBtn').className = '';
+  document.getElementById('generateBtn').textContent = 'Upload both photos to start';
+}
+</script>
+
+</body>
+</html>
